@@ -484,7 +484,7 @@ export default function WorkshopUpsellPage() {
 
             <p className="text-lg text-neutral-300 mb-10 max-w-2xl mx-auto">
               That&apos;s enough time to break through your revenue ceiling, reclaim your health,
-              show up for your family, and prove you can build wealth without sacrifice.
+              show{'\u00A0'}up for your family, and prove you can build wealth without sacrifice.
             </p>
 
             <p className="text-xl text-white font-semibold mb-10">
