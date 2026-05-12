@@ -44,7 +44,14 @@ export default function ThankYouPage() {
     const customerData = sessionStorage.getItem('funnelCustomer');
     const orderData = sessionStorage.getItem('funnelOrder');
     if (customerData) setCustomer(JSON.parse(customerData));
-    if (orderData) setOrder(JSON.parse(orderData));
+    if (orderData) {
+      const parsed = JSON.parse(orderData);
+      setOrder({
+        items: parsed.items ?? [],
+        shipping: parsed.shipping ?? 0,
+        total: parsed.total ?? 0,
+      });
+    }
   }, []);
 
   return (
