@@ -17,6 +17,15 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: '/free-book/workshop',
+        destination: '/workshop',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
