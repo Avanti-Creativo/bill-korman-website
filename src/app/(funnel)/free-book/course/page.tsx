@@ -28,12 +28,12 @@ export default function CourseDownsellPage() {
     order.items = items;
     order.total = (order.total || 0) + 497;
     sessionStorage.setItem('funnelOrder', JSON.stringify(order));
-    router.push('/free-book/workshop');
+    router.push('/workshop');
   };
 
   const handleDecline = () => {
     // Skip to workshop upsell anyway
-    router.push('/free-book/workshop');
+    router.push('/workshop');
   };
 
   return (

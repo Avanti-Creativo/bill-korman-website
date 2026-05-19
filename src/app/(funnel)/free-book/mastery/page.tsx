@@ -33,7 +33,7 @@ export default function MasteryUpsellPage() {
     order.items = items;
     order.total = (order.total || 0) + 7500;
     sessionStorage.setItem('funnelOrder', JSON.stringify(order));
-    router.push('/free-book/workshop');
+    router.push('/workshop');
   };
 
   const handleDecline = () => {
