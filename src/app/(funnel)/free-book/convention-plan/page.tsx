@@ -26,12 +26,11 @@ export default function ConventionPlanPage() {
     order.items = items;
     order.total = (order.total || 0) + 997;
     sessionStorage.setItem('funnelOrder', JSON.stringify(order));
-    router.push('/free-book/mastery');
+    router.push('/free-book/thank-you');
   };
 
   const handleDecline = () => {
-    // Skip to next upsell anyway
-    router.push('/free-book/mastery');
+    router.push('/free-book/thank-you');
   };
 
   return (

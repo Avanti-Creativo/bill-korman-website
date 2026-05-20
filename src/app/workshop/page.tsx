@@ -2,7 +2,6 @@
 
 import { motion } from 'framer-motion';
 import { Check, X, Clock4, Video, Calendar, ArrowRight } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 
 const PALETTE = {
   bg: '#0D121E',
@@ -119,28 +118,9 @@ function PrimaryCTA({ onClick, children }: { onClick: () => void; children: Reac
   );
 }
 
-function DeclineLink({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="text-sm underline transition-colors mt-4 block mx-auto"
-      style={{ color: PALETTE.mutedDark, fontFamily: 'Plus Jakarta Sans, sans-serif' }}
-    >
-      No thanks, I&rsquo;ll pass on this offer
-    </button>
-  );
-}
-
 export default function WorkshopUpsellPage() {
-  const router = useRouter();
-
   const handleAccept = () => {
     window.location.href = EVENTBRITE_URL;
-  };
-
-  const handleDecline = () => {
-    router.push('/free-book/thank-you');
   };
 
   return (
@@ -161,7 +141,7 @@ export default function WorkshopUpsellPage() {
           className="text-xs md:text-sm font-bold tracking-[0.18em] uppercase"
           style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}
         >
-          Final Offer &middot; One Last Opportunity
+          Live Workshop &middot; Limited Spots Available
         </p>
       </div>
 
@@ -188,9 +168,9 @@ export default function WorkshopUpsellPage() {
                 className="text-3xl md:text-5xl lg:text-[3.25rem] font-extrabold leading-[1.15] mb-6 tracking-tight"
                 style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}
               >
-                Here&rsquo;s One{' '}
-                <span style={{ color: PALETTE.green }}>Final Opportunity</span>
-                <br className="hidden md:block" /> To Lock In The Exact Tools To Ensure Your New Year Goals Stay On Track
+                Lock In The Exact Tools To{' '}
+                <span style={{ color: PALETTE.green }}>Get Back On Track</span>
+                <br className="hidden md:block" /> To Your 2026 Goals
               </h1>
 
               <p
@@ -256,7 +236,6 @@ export default function WorkshopUpsellPage() {
 
                 <div className="mt-7">
                   <PrimaryCTA onClick={handleAccept}>Yes &mdash; Lock In My Spot For $97</PrimaryCTA>
-                  <DeclineLink onClick={handleDecline} />
                 </div>
               </div>
             </motion.div>
@@ -439,7 +418,6 @@ export default function WorkshopUpsellPage() {
               </div>
 
               <PrimaryCTA onClick={handleAccept}>Yes &mdash; Lock In My Spot For $97</PrimaryCTA>
-              <DeclineLink onClick={handleDecline} />
             </motion.div>
           </div>
         </section>
@@ -590,7 +568,6 @@ export default function WorkshopUpsellPage() {
               </div>
 
               <PrimaryCTA onClick={handleAccept}>Yes &mdash; Lock In My Spot For $97</PrimaryCTA>
-              <DeclineLink onClick={handleDecline} />
             </motion.div>
           </div>
         </section>
@@ -763,8 +740,7 @@ export default function WorkshopUpsellPage() {
                 >
                   One workshop. <span style={{ color: PALETTE.green }}>Eight months that change everything.</span>
                 </p>
-                <DeclineLink onClick={handleDecline} />
-              </div>
+                </div>
             </motion.div>
           </div>
         </section>
@@ -826,7 +802,6 @@ export default function WorkshopUpsellPage() {
               >
                 30-day money-back guarantee &middot; Secure checkout
               </p>
-              <DeclineLink onClick={handleDecline} />
             </motion.div>
           </div>
         </section>
