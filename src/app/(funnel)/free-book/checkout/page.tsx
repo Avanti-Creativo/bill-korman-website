@@ -56,7 +56,7 @@ export default function CheckoutPage() {
       total: total,
     }));
     // Mock checkout - redirect to first upsell
-    router.push('/free-book/convention');
+    router.push('/free-book/mastery');
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
