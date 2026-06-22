@@ -13,6 +13,7 @@ import FunnelCTA from '@/components/funnel/FunnelCTA';
 export default function CheckoutPage() {
   const router = useRouter();
   const [orderBump, setOrderBump] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -31,8 +32,11 @@ export default function CheckoutPage() {
   const bumpPrice = 47;
   const total = orderBump ? basePrice + bumpPrice : basePrice;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
     // Save customer info and order to sessionStorage
     const orderItems = [
       { name: 'The 168 Game (Book)', price: 0, note: 'Free + $5.95 shipping' },
@@ -55,7 +59,37 @@ export default function CheckoutPage() {
       shipping: basePrice,
       total: total,
     }));
-    // Mock checkout - redirect to first upsell
+
+    // Capture the lead in GHL. Best-effort: never block the funnel, and bail
+    // out after 8s so a slow/hung request can't trap the customer. Payment
+    // fields are deliberately excluded from this payload.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    try {
+      await fetch('/api/funnel-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          zip: formData.zip,
+          country: formData.country,
+          orderBump,
+          total,
+        }),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      console.error('Lead capture failed:', err);
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    // Mock checkout - redirect to first upsell (always, regardless of capture)
     router.push('/free-book/mastery');
   };
 
@@ -259,10 +293,11 @@ export default function CheckoutPage() {
                     size="xl"
                     className="w-full"
                     showArrow={false}
+                    disabled={isSubmitting}
                   >
                     <span className="flex items-center justify-center gap-2">
                       <Lock className="w-5 h-5" />
-                      Complete Order - ${total.toFixed(2)}
+                      {isSubmitting ? 'Processing…' : `Complete Order - $${total.toFixed(2)}`}
                     </span>
                   </FunnelCTA>
                 </div>

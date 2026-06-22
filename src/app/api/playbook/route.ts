@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isGHLConfigured, upsertContact } from '@/lib/ghl';
 
 interface PlaybookFormData {
   firstName: string;
@@ -6,8 +7,6 @@ interface PlaybookFormData {
   email: string;
   phone?: string;
 }
-
-const GHL_BASE_URL = 'https://services.leadconnectorhq.com';
 
 function validatePlaybookForm(data: PlaybookFormData): {
   isValid: boolean;
@@ -31,57 +30,6 @@ function validatePlaybookForm(data: PlaybookFormData): {
   };
 }
 
-function getGHLHeaders() {
-  return {
-    Authorization: `Bearer ${process.env.GHL_API_KEY}`,
-    'Content-Type': 'application/json',
-    Version: '2021-07-28',
-  };
-}
-
-async function createOrUpdateGHLContact(data: PlaybookFormData): Promise<string> {
-  const locationId = process.env.GHL_LOCATION_ID;
-  const tags = ['playbook-request', 'lead-magnet'];
-
-  const createRes = await fetch(`${GHL_BASE_URL}/contacts/`, {
-    method: 'POST',
-    headers: getGHLHeaders(),
-    body: JSON.stringify({
-      firstName: data.firstName.trim(),
-      lastName: data.lastName.trim(),
-      email: data.email.trim().toLowerCase(),
-      phone: data.phone?.trim() || undefined,
-      locationId,
-      tags,
-      source: 'Playbook Form',
-    }),
-  });
-
-  if (createRes.ok) {
-    const result = await createRes.json();
-    return result.contact.id;
-  }
-
-  const errorResult = await createRes.json().catch(() => null);
-
-  if (errorResult?.meta?.contactId) {
-    const contactId = errorResult.meta.contactId;
-    await fetch(`${GHL_BASE_URL}/contacts/${contactId}`, {
-      method: 'PUT',
-      headers: getGHLHeaders(),
-      body: JSON.stringify({
-        firstName: data.firstName.trim(),
-        lastName: data.lastName.trim(),
-        phone: data.phone?.trim() || undefined,
-        tags,
-      }),
-    });
-    return contactId;
-  }
-
-  throw new Error(`Failed to create GHL contact: ${createRes.status} ${JSON.stringify(errorResult)}`);
-}
-
 export async function POST(request: NextRequest) {
   try {
     const body: PlaybookFormData = await request.json();
@@ -91,7 +39,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, errors }, { status: 400 });
     }
 
-    if (!process.env.GHL_API_KEY || !process.env.GHL_LOCATION_ID) {
+    if (!isGHLConfigured()) {
       console.error('GHL integration not configured — missing GHL_API_KEY or GHL_LOCATION_ID');
       return NextResponse.json(
         {
@@ -102,7 +50,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await createOrUpdateGHLContact(body);
+    await upsertContact({
+      firstName: body.firstName,
+      lastName: body.lastName,
+      email: body.email,
+      phone: body.phone,
+      tags: ['playbook-request', 'lead-magnet'],
+      source: 'Playbook Form',
+    });
 
     return NextResponse.json(
       {

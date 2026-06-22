@@ -16,6 +16,7 @@ interface FunnelCTAProps {
   type?: 'button' | 'submit' | 'reset';
   target?: string;
   rel?: string;
+  disabled?: boolean;
 }
 
 export default function FunnelCTA({
@@ -30,6 +31,7 @@ export default function FunnelCTA({
   type = 'button',
   target,
   rel,
+  disabled = false,
 }: FunnelCTAProps) {
   const variantStyles = {
     primary: {
@@ -62,6 +64,7 @@ export default function FunnelCTA({
     hover:scale-[1.02]
     ${sizes[size]}
     ${pulse ? 'animate-pulse' : ''}
+    ${disabled ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''}
     ${className}
   `;
 
@@ -102,10 +105,11 @@ export default function FunnelCTA({
     <motion.button
       type={type}
       onClick={onClick}
+      disabled={disabled}
       className={buttonClasses}
       style={variantStyles[variant]}
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
+      whileHover={disabled ? undefined : { scale: 1.02 }}
+      whileTap={disabled ? undefined : { scale: 0.98 }}
     >
       {content}
     </motion.button>
