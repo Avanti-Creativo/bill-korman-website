@@ -63,9 +63,9 @@ export default function CheckoutPage() {
     // Capture the lead in GHL. Best-effort: never block the funnel, and bail
     // out after 8s so a slow/hung request can't trap the customer. Payment
     // fields are deliberately excluded from this payload.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
       await fetch('/api/funnel-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -83,9 +83,10 @@ export default function CheckoutPage() {
         }),
         signal: controller.signal,
       });
-      clearTimeout(timeout);
     } catch (err) {
       console.error('Lead capture failed:', err);
+    } finally {
+      clearTimeout(timeout);
     }
 
     // Mock checkout - redirect to first upsell (always, regardless of capture)

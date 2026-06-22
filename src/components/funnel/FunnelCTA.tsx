@@ -64,7 +64,7 @@ export default function FunnelCTA({
     hover:scale-[1.02]
     ${sizes[size]}
     ${pulse ? 'animate-pulse' : ''}
-    ${disabled ? 'opacity-60 cursor-not-allowed' : ''}
+    ${disabled ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''}
     ${className}
   `;
 
