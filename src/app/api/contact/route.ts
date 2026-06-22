@@ -1,4 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  isGHLConfigured,
+  upsertContact,
+  createOpportunity,
+  addNote,
+} from '@/lib/ghl';
 
 interface ContactFormData {
   firstName: string;
@@ -8,8 +14,6 @@ interface ContactFormData {
   subject: string;
   message: string;
 }
-
-const GHL_BASE_URL = 'https://services.leadconnectorhq.com';
 
 // Subject mapping for display labels and GHL tags
 const subjectLabels: Record<string, string> = {
@@ -60,108 +64,16 @@ function validateContactForm(data: ContactFormData): {
   };
 }
 
-function getGHLHeaders() {
-  return {
-    Authorization: `Bearer ${process.env.GHL_API_KEY}`,
-    'Content-Type': 'application/json',
-    Version: '2021-07-28',
-  };
-}
-
-async function createOrUpdateGHLContact(data: ContactFormData): Promise<string> {
-  const locationId = process.env.GHL_LOCATION_ID;
-  const tags = subjectTags[data.subject] || ['contact-form'];
-
-  // Try to create the contact
-  const createRes = await fetch(`${GHL_BASE_URL}/contacts/`, {
-    method: 'POST',
-    headers: getGHLHeaders(),
-    body: JSON.stringify({
-      firstName: data.firstName.trim(),
-      lastName: data.lastName.trim(),
-      email: data.email.trim().toLowerCase(),
-      phone: data.phone?.trim() || undefined,
-      locationId,
-      tags,
-      source: 'Website Contact Form',
-    }),
-  });
-
-  if (createRes.ok) {
-    const result = await createRes.json();
-    return result.contact.id;
-  }
-
-  // GHL returns 400/422/409 for duplicate contacts
-  // The error response includes the existing contactId in meta
-  const errorResult = await createRes.json().catch(() => null);
-
-  if (errorResult?.meta?.contactId) {
-    const contactId = errorResult.meta.contactId;
-    // Update existing contact with new tags and info
-    await fetch(`${GHL_BASE_URL}/contacts/${contactId}`, {
-      method: 'PUT',
-      headers: getGHLHeaders(),
-      body: JSON.stringify({
-        firstName: data.firstName.trim(),
-        lastName: data.lastName.trim(),
-        phone: data.phone?.trim() || undefined,
-        tags,
-      }),
-    });
-    return contactId;
-  }
-
-  throw new Error(`Failed to create GHL contact: ${createRes.status} ${JSON.stringify(errorResult)}`);
-}
-
-async function createGHLOpportunity(contactId: string, data: ContactFormData) {
-  const pipelineId = process.env.GHL_PIPELINE_ID;
-  const pipelineStageId = process.env.GHL_PIPELINE_STAGE_ID;
-  const locationId = process.env.GHL_LOCATION_ID;
-
-  if (!pipelineId || !pipelineStageId) {
-    console.warn('GHL pipeline not configured — skipping opportunity creation');
-    return null;
-  }
-
-  const topicLabel = subjectLabels[data.subject] || data.subject;
-
-  const res = await fetch(`${GHL_BASE_URL}/opportunities/`, {
-    method: 'POST',
-    headers: getGHLHeaders(),
-    body: JSON.stringify({
-      pipelineId,
-      pipelineStageId,
-      locationId,
-      contactId,
-      name: `${topicLabel} — ${data.firstName} ${data.lastName}`,
-      status: 'open',
-    }),
-  });
-
-  if (!res.ok) {
-    const errorBody = await res.text();
-    console.error('Failed to create GHL opportunity:', res.status, errorBody);
-    return null;
-  }
-
-  const result = await res.json();
-  return result.opportunity;
-}
-
 export async function POST(request: NextRequest) {
   try {
     const body: ContactFormData = await request.json();
 
-    // Validate input
     const { isValid, errors } = validateContactForm(body);
     if (!isValid) {
       return NextResponse.json({ success: false, errors }, { status: 400 });
     }
 
-    // Check GHL configuration
-    if (!process.env.GHL_API_KEY || !process.env.GHL_LOCATION_ID) {
+    if (!isGHLConfigured()) {
       console.error('GHL integration not configured — missing GHL_API_KEY or GHL_LOCATION_ID');
       return NextResponse.json(
         {
@@ -173,19 +85,36 @@ export async function POST(request: NextRequest) {
     }
 
     // 1. Create or update contact in GHL
-    const contactId = await createOrUpdateGHLContact(body);
+    const contactId = await upsertContact({
+      firstName: body.firstName,
+      lastName: body.lastName,
+      email: body.email,
+      phone: body.phone,
+      tags: subjectTags[body.subject] || ['contact-form'],
+      source: 'Website Contact Form',
+    });
 
-    // 2. Create pipeline opportunity
-    await createGHLOpportunity(contactId, body);
+    // 2. Create pipeline opportunity (skipped if pipeline not configured)
+    const pipelineId = process.env.GHL_PIPELINE_ID;
+    const pipelineStageId = process.env.GHL_PIPELINE_STAGE_ID;
+    if (pipelineId && pipelineStageId) {
+      const topicLabel = subjectLabels[body.subject] || body.subject;
+      await createOpportunity({
+        pipelineId,
+        pipelineStageId,
+        contactId,
+        name: `${topicLabel} — ${body.firstName} ${body.lastName}`,
+        status: 'open',
+      });
+    } else {
+      console.warn('GHL pipeline not configured — skipping opportunity creation');
+    }
 
     // 3. Add a note with the full message to the contact
-    await fetch(`${GHL_BASE_URL}/contacts/${contactId}/notes`, {
-      method: 'POST',
-      headers: getGHLHeaders(),
-      body: JSON.stringify({
-        body: `**Website Contact Form Submission**\n\nTopic: ${subjectLabels[body.subject] || body.subject}\n\nMessage:\n${body.message}`,
-      }),
-    });
+    await addNote(
+      contactId,
+      `**Website Contact Form Submission**\n\nTopic: ${subjectLabels[body.subject] || body.subject}\n\nMessage:\n${body.message}`
+    );
 
     return NextResponse.json(
       {
