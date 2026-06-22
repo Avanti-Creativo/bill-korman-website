@@ -83,14 +83,18 @@ export async function POST(request: NextRequest) {
     const pipelineId = process.env.GHL_FUNNEL_PIPELINE_ID;
     const pipelineStageId = process.env.GHL_FUNNEL_PIPELINE_STAGE_ID;
     if (pipelineId && pipelineStageId) {
-      await createOpportunity({
-        pipelineId,
-        pipelineStageId,
-        contactId,
-        name: `Book Order — ${body.firstName.trim()} ${body.lastName.trim()}`,
-        monetaryValue: typeof body.total === 'number' ? body.total : undefined,
-        status: 'open',
-      });
+      try {
+        await createOpportunity({
+          pipelineId,
+          pipelineStageId,
+          contactId,
+          name: `Book Order — ${body.firstName.trim()} ${body.lastName.trim()}`,
+          monetaryValue: typeof body.total === 'number' ? body.total : undefined,
+          status: 'open',
+        });
+      } catch (err) {
+        console.error('Funnel opportunity creation failed (best-effort):', err);
+      }
     } else {
       console.warn('GHL funnel pipeline not configured — skipping opportunity creation');
     }
@@ -104,14 +108,18 @@ export async function POST(request: NextRequest) {
       .map((part) => part?.trim())
       .filter(Boolean)
       .join(', ');
-    await addNote(
-      contactId,
-      `**Book Funnel Checkout**\n\nOrder:\n- ${items.join('\n- ')}\n\nOrder bump: ${
-        body.orderBump ? 'Yes' : 'No'
-      }\nTotal: $${(typeof body.total === 'number' ? body.total : 0).toFixed(2)}\nShipping address: ${
-        shippingAddress || 'N/A'
-      }`
-    );
+    try {
+      await addNote(
+        contactId,
+        `**Book Funnel Checkout**\n\nOrder:\n- ${items.join('\n- ')}\n\nOrder bump: ${
+          body.orderBump ? 'Yes' : 'No'
+        }\nTotal: $${(typeof body.total === 'number' ? body.total : 0).toFixed(2)}\nShipping address: ${
+          shippingAddress || 'N/A'
+        }`
+      );
+    } catch (err) {
+      console.error('Funnel note creation failed (best-effort):', err);
+    }
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
