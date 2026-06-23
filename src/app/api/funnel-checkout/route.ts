@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 1. Create or update the contact with shipping address + tags
-    const tags = ['funnel-checkout', 'book-order', '168-game'];
+    const tags = ['funnel-checkout', 'book-order', '168-game', 'contact-form'];
     if (body.orderBump) {
       tags.push('order-bump-quickstart');
     }
