@@ -7,7 +7,7 @@ const secretKey = process.env.STRIPE_SECRET_KEY;
 // Fall back to a placeholder so the module can be imported in test environments
 // where STRIPE_SECRET_KEY is not set. Call isStripeConfigured() before using the
 // stripe client in production paths.
-export const stripe = new Stripe(secretKey ?? 'sk_test_placeholder_not_configured');
+export const stripe = new Stripe(secretKey ?? 'rk_test_placeholder_not_configured');
 
 export function isStripeConfigured(): boolean {
   return Boolean(process.env.STRIPE_SECRET_KEY);
