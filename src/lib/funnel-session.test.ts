@@ -21,7 +21,7 @@ describe('funnel session cookie', () => {
 
   it('rejects a tampered payload', () => {
     const raw = serializeSession(sample);
-    const [body, sig] = raw.split('.');
+    const sig = raw.split('.')[1];
     const tampered = Buffer.from(JSON.stringify({ ...sample, purchased: [] })).toString('base64url');
     expect(parseSession(`${tampered}.${sig}`)).toBeNull();
   });

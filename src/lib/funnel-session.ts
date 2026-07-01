@@ -27,7 +27,9 @@ export function serializeSession(s: FunnelSession): string {
 
 export function parseSession(raw: string | undefined | null): FunnelSession | null {
   if (!raw || !raw.includes('.')) return null;
-  const [body, sig] = raw.split('.');
+  const parts = raw.split('.');
+  if (parts.length !== 2) return null;
+  const [body, sig] = parts;
   if (!body || !sig) return null;
   const expected = hmac(body);
   // constant-time compare; lengths must match first
