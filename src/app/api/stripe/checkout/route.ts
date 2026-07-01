@@ -57,6 +57,9 @@ export async function POST(request: Request) {
       ?? await stripe.customers.create({
         email,
         name: `${body.firstName.trim()} ${body.lastName.trim()}`,
+        // Funnel ships US-only (the checkout country field is disabled/defaulted to
+        // the display name "United States"). Stripe's address.country requires an ISO
+        // 3166-1 alpha-2 code, so 'US' is intentional here — never body.country.
         address: body.address
           ? { line1: body.address, city: body.city, state: body.state, postal_code: body.zip, country: 'US' }
           : undefined,

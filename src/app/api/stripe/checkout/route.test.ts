@@ -50,6 +50,14 @@ describe('POST /api/stripe/checkout', () => {
     expect(cookieStore.set).toHaveBeenCalled();
   });
 
+  it('charges shipping only (595) when the order bump is off', async () => {
+    const res = await POST(req({ firstName: 'Jane', lastName: 'Doe', email: 'j@d.com', orderBump: false }));
+    expect(res.status).toBe(200);
+    expect(stripe.paymentIntents.create).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: 595, currency: 'usd' })
+    );
+  });
+
   it('rejects invalid contact info', async () => {
     const res = await POST(req({ firstName: 'J', lastName: '', email: 'nope' }));
     expect(res.status).toBe(400);
