@@ -166,9 +166,17 @@ product key. Each route reads/writes the signed session cookie.
   (raw body). Handles `payment_intent.succeeded`, `invoice.paid`,
   `invoice.payment_failed`, `charge.refunded`. Uses the object's **metadata**
   (`ghlContactId`, `product`) to update GHL best-effort: add a "Paid $X — [label]"
-  note and bump the opportunity's `monetaryValue`. GHL is the source of truth for
-  *paid*, kept separate from the earlier lead capture. Best-effort: a GHL failure
-  never 500s the webhook (Stripe would retry).
+  note. GHL is the source of truth for *paid*, kept separate from the earlier
+  lead capture. Best-effort: a GHL failure never 500s the webhook (Stripe would
+  retry).
+
+  > **As-built note (2026-07-02):** the webhook posts a **note only**. The
+  > originally-planned opportunity `monetaryValue` bump was intentionally
+  > dropped: with no datastore we don't persist the GHL opportunity id, so we
+  > can't reliably update the existing opportunity's value (creating a new
+  > opportunity per payment would clutter the pipeline). Tracked follow-up if
+  > opportunity-value roll-up is later needed — it would require storing the
+  > opportunity id (e.g. in the funnel-session cookie or a small store).
 
 ### 4.4 Client
 
