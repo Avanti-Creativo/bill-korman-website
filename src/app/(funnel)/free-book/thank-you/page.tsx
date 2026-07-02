@@ -240,26 +240,6 @@ export default function ThankYouPage() {
         </div>
       </section>
 
-      {/* Video Section */}
-      <section className="py-16 bg-neutral-950">
-        <div className="max-w-3xl mx-auto px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <div className="relative aspect-video bg-neutral-900/50 border border-neutral-800 rounded-2xl overflow-hidden flex items-center justify-center">
-              {/* Placeholder - replace with actual video */}
-              <div className="text-center">
-                <div className="w-20 h-20 rounded-full bg-primary-500/20 flex items-center justify-center mx-auto mb-4">
-                  <Play className="w-10 h-10 text-primary-400 ml-1" />
-                </div>
-                <p className="text-neutral-500 text-sm">Video coming soon</p>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
 
       {/* Strategy Call CTA */}
       <section className="py-16">
