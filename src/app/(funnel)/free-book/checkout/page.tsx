@@ -1,19 +1,40 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, Lock, CreditCard, Check } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useStripe, useElements, PaymentElement } from '@stripe/react-stripe-js';
 import Input from '@/components/ui/Input';
 import OrderBump from '@/components/funnel/OrderBump';
 import FunnelCTA from '@/components/funnel/FunnelCTA';
+import StripeProvider from '@/components/funnel/StripeProvider';
+import { checkoutAmountCents } from '@/lib/stripe';
 
 export default function CheckoutPage() {
-  const router = useRouter();
   const [orderBump, setOrderBump] = useState(false);
+  const amount = useMemo(() => checkoutAmountCents(orderBump), [orderBump]);
+  return (
+    <StripeProvider amount={amount}>
+      <CheckoutForm orderBump={orderBump} setOrderBump={setOrderBump} />
+    </StripeProvider>
+  );
+}
+
+function CheckoutForm({
+  orderBump,
+  setOrderBump,
+}: {
+  orderBump: boolean;
+  setOrderBump: (v: boolean) => void;
+}) {
+  const router = useRouter();
+  const stripe = useStripe();
+  const elements = useElements();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -23,9 +44,6 @@ export default function CheckoutPage() {
     state: '',
     zip: '',
     country: 'United States',
-    cardNumber: '',
-    expiry: '',
-    cvc: '',
   });
 
   const basePrice = 5.95;
@@ -34,62 +52,59 @@ export default function CheckoutPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting) return;
+    if (!stripe || !elements || isSubmitting) return;
     setIsSubmitting(true);
+    setError(null);
 
-    // Save customer info and order to sessionStorage
-    const orderItems = [
-      { name: 'The 168 Game (Book)', price: 0, note: 'Free + $5.95 shipping' },
-    ];
-    if (orderBump) {
-      orderItems.push({ name: 'Quick Start Implementation Guide', price: bumpPrice, note: '' });
+    const { error: submitError } = await elements.submit();
+    if (submitError) {
+      setError(submitError.message ?? 'Check your card details.');
+      setIsSubmitting(false);
+      return;
     }
+
+    // Keep the existing sessionStorage writes for the thank-you summary.
+    const orderItems = [{ name: 'The 168 Game (Book)', price: 0, note: 'Free + $5.95 shipping' }];
+    if (orderBump) orderItems.push({ name: 'Quick Start Implementation Guide', price: 47, note: '' });
     sessionStorage.setItem('funnelCustomer', JSON.stringify({
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      email: formData.email,
-      address: formData.address,
-      city: formData.city,
-      state: formData.state,
-      zip: formData.zip,
-      country: formData.country,
+      firstName: formData.firstName, lastName: formData.lastName, email: formData.email,
+      address: formData.address, city: formData.city, state: formData.state, zip: formData.zip, country: formData.country,
     }));
-    sessionStorage.setItem('funnelOrder', JSON.stringify({
-      items: orderItems,
-      shipping: basePrice,
-      total: total,
-    }));
+    sessionStorage.setItem('funnelOrder', JSON.stringify({ items: orderItems, shipping: 5.95, total: orderBump ? 52.95 : 5.95 }));
 
-    // Capture the lead in GHL. Best-effort: never block the funnel, and bail
-    // out after 8s so a slow/hung request can't trap the customer. Payment
-    // fields are deliberately excluded from this payload.
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
-    try {
-      await fetch('/api/funnel-checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          address: formData.address,
-          city: formData.city,
-          state: formData.state,
-          zip: formData.zip,
-          country: formData.country,
-          orderBump,
-          total,
-        }),
-        signal: controller.signal,
-      });
-    } catch (err) {
-      console.error('Lead capture failed:', err);
-    } finally {
-      clearTimeout(timeout);
+    const res = await fetch('/api/stripe/checkout', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...formData, orderBump }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.clientSecret) {
+      setError(data.message ?? 'Could not start payment.');
+      setIsSubmitting(false);
+      return;
     }
 
-    // Mock checkout - redirect to first upsell (always, regardless of capture)
+    const { error: payError, paymentIntent } = await stripe.confirmPayment({
+      elements, clientSecret: data.clientSecret,
+      confirmParams: { return_url: `${window.location.origin}/free-book/mastery` },
+      redirect: 'if_required',
+    });
+    if (payError) {
+      setError(payError.message ?? 'Payment failed.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    let saved = false;
+    for (let attempt = 0; attempt < 2 && !saved; attempt++) {
+      try {
+        const saveRes = await fetch('/api/stripe/save-session', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paymentIntentId: paymentIntent!.id }),
+        });
+        saved = saveRes.ok;
+      } catch { /* retry once */ }
+    }
+    if (!saved) console.error('save-session did not confirm; upsells will self-heal from the saved customer card');
     router.push('/free-book/mastery');
   };
 
@@ -236,32 +251,7 @@ export default function CheckoutPage() {
                     Payment Information
                   </h2>
                   <div className="space-y-4">
-                    <Input
-                      label="Card Number"
-                      name="cardNumber"
-                      value={formData.cardNumber}
-                      onChange={handleInputChange}
-                      placeholder="4242 4242 4242 4242"
-                      required
-                    />
-                    <div className="grid grid-cols-2 gap-4">
-                      <Input
-                        label="Expiry Date"
-                        name="expiry"
-                        value={formData.expiry}
-                        onChange={handleInputChange}
-                        placeholder="MM/YY"
-                        required
-                      />
-                      <Input
-                        label="CVC"
-                        name="cvc"
-                        value={formData.cvc}
-                        onChange={handleInputChange}
-                        placeholder="123"
-                        required
-                      />
-                    </div>
+                    <PaymentElement options={{ layout: 'tabs' }} />
                   </div>
                 </div>
 
@@ -285,6 +275,9 @@ export default function CheckoutPage() {
                   Start implementing before the book even arrives. This is a ONE-TIME offer.
                   You won't see this again after checkout.
                 </p>
+
+                {/* Error message */}
+                {error && <p className="text-red-400 text-sm">{error}</p>}
 
                 {/* Submit Button */}
                 <div className="pt-4">

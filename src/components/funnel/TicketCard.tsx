@@ -11,8 +11,8 @@ interface TicketCardProps {
   features: string[];
   highlighted?: boolean;
   ctaText: string;
-  onSelect?: () => void;
-  href?: string;
+  onClick?: () => void;
+  disabled?: boolean;
 }
 
 export default function TicketCard({
@@ -22,8 +22,8 @@ export default function TicketCard({
   features,
   highlighted = false,
   ctaText,
-  onSelect,
-  href,
+  onClick,
+  disabled = false,
 }: TicketCardProps) {
   return (
     <motion.div
@@ -72,12 +72,11 @@ export default function TicketCard({
 
         {/* CTA */}
         <FunnelCTA
-          href={href}
-          onClick={onSelect}
+          onClick={onClick}
+          disabled={disabled}
           variant={highlighted ? 'accent' : 'primary'}
           size="lg"
           className="w-full"
-          {...(href?.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
         >
           {ctaText}
         </FunnelCTA>

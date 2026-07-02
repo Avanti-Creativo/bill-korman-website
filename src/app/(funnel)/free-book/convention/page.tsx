@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import FunnelCTA from '@/components/funnel/FunnelCTA';
 import UrgencyBanner from '@/components/funnel/UrgencyBanner';
 import TicketCard from '@/components/funnel/TicketCard';
+import { useUpsellCharge } from '@/hooks/useUpsellCharge';
 
 const regularFeatures = [
   'Full 3-Day Convention Access (March 26-28, 2026)',
@@ -53,6 +54,16 @@ const day3 = [
 
 export default function ConventionUpsellPage() {
   const router = useRouter();
+  const { run, isLoading, error } = useUpsellCharge();
+
+  const buy = (product: 'convention-regular' | 'convention-vip', price: number, label: string) =>
+    run(product, () => {
+      const order = JSON.parse(sessionStorage.getItem('funnelOrder') || '{}');
+      order.items = [...(order.items || []), { name: label, price, note: '' }];
+      order.total = (order.total || 0) + price;
+      sessionStorage.setItem('funnelOrder', JSON.stringify(order));
+      router.push('/free-book/thank-you');
+    });
 
   const handleDecline = () => {
     // Go to downsell (payment plan)
@@ -105,13 +116,14 @@ export default function ConventionUpsellPage() {
             </p>
 
             <div className="flex flex-wrap justify-center gap-4">
-              <FunnelCTA href="https://buy.stripe.com/6oUeVc97W5pmeywew8fnO02" target="_blank" rel="noopener noreferrer" variant="primary" size="lg">
-                Regular Ticket - $997
+              <FunnelCTA onClick={() => buy('convention-regular', 997, 'Convention — Regular Ticket')} variant="primary" size="lg" disabled={isLoading}>
+                {isLoading ? 'Processing…' : 'Regular Ticket - $997'}
               </FunnelCTA>
-              <FunnelCTA href="https://buy.stripe.com/3cI7sKesgdVSaig4VyfnO03" target="_blank" rel="noopener noreferrer" variant="accent" size="lg">
-                VIP Ticket - $1,497
+              <FunnelCTA onClick={() => buy('convention-vip', 1497, 'Convention — VIP Ticket')} variant="accent" size="lg" disabled={isLoading}>
+                {isLoading ? 'Processing…' : 'VIP Ticket - $1,497'}
               </FunnelCTA>
             </div>
+            {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
           </motion.div>
         </div>
       </section>
@@ -229,8 +241,9 @@ export default function ConventionUpsellPage() {
                 price="$997"
                 originalValue="$13,500+"
                 features={regularFeatures}
-                ctaText="Secure Your Ticket"
-                href="https://buy.stripe.com/6oUeVc97W5pmeywew8fnO02"
+                ctaText={isLoading ? 'Processing…' : 'Secure Your Ticket'}
+                onClick={() => buy('convention-regular', 997, 'Convention — Regular Ticket')}
+                disabled={isLoading}
               />
 
               <TicketCard
@@ -239,10 +252,12 @@ export default function ConventionUpsellPage() {
                 originalValue="$65,000+"
                 features={vipFeatures}
                 highlighted
-                ctaText="Upgrade to VIP"
-                href="https://buy.stripe.com/3cI7sKesgdVSaig4VyfnO03"
+                ctaText={isLoading ? 'Processing…' : 'Upgrade to VIP'}
+                onClick={() => buy('convention-vip', 1497, 'Convention — VIP Ticket')}
+                disabled={isLoading}
               />
             </div>
+            {error && <p className="text-red-400 text-sm mt-3 text-center">{error}</p>}
           </motion.div>
         </div>
       </section>
@@ -300,13 +315,14 @@ export default function ConventionUpsellPage() {
             </p>
 
             <div className="flex flex-wrap justify-center gap-4">
-              <FunnelCTA href="https://buy.stripe.com/6oUeVc97W5pmeywew8fnO02" target="_blank" rel="noopener noreferrer" variant="primary" size="lg">
-                Secure My Regular Ticket - $997
+              <FunnelCTA onClick={() => buy('convention-regular', 997, 'Convention — Regular Ticket')} variant="primary" size="lg" disabled={isLoading}>
+                {isLoading ? 'Processing…' : 'Secure My Regular Ticket - $997'}
               </FunnelCTA>
-              <FunnelCTA href="https://buy.stripe.com/3cI7sKesgdVSaig4VyfnO03" target="_blank" rel="noopener noreferrer" variant="accent" size="lg">
-                Upgrade to VIP - $1,497
+              <FunnelCTA onClick={() => buy('convention-vip', 1497, 'Convention — VIP Ticket')} variant="accent" size="lg" disabled={isLoading}>
+                {isLoading ? 'Processing…' : 'Upgrade to VIP - $1,497'}
               </FunnelCTA>
             </div>
+            {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
           </motion.div>
         </div>
       </section>
@@ -432,13 +448,14 @@ export default function ConventionUpsellPage() {
       <section className="py-16">
         <div className="max-w-3xl mx-auto px-4 text-center">
           <div className="flex flex-wrap justify-center gap-4 mb-8">
-            <FunnelCTA href="https://buy.stripe.com/6oUeVc97W5pmeywew8fnO02" target="_blank" rel="noopener noreferrer" variant="primary" size="xl">
-              Secure My Regular Ticket - $997
+            <FunnelCTA onClick={() => buy('convention-regular', 997, 'Convention — Regular Ticket')} variant="primary" size="xl" disabled={isLoading}>
+              {isLoading ? 'Processing…' : 'Secure My Regular Ticket - $997'}
             </FunnelCTA>
-            <FunnelCTA href="https://buy.stripe.com/3cI7sKesgdVSaig4VyfnO03" target="_blank" rel="noopener noreferrer" variant="accent" size="xl">
-              Upgrade to VIP - $1,497
+            <FunnelCTA onClick={() => buy('convention-vip', 1497, 'Convention — VIP Ticket')} variant="accent" size="xl" disabled={isLoading}>
+              {isLoading ? 'Processing…' : 'Upgrade to VIP - $1,497'}
             </FunnelCTA>
           </div>
+          {error && <p className="text-red-400 text-sm mt-3 mb-4">{error}</p>}
 
           <button
             onClick={handleDecline}

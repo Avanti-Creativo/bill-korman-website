@@ -1,10 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Check, Shield, Calendar } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import FunnelCTA from '@/components/funnel/FunnelCTA';
 import UrgencyBanner from '@/components/funnel/UrgencyBanner';
+import { getStripe } from '@/lib/stripe-client';
+import { startInstallmentPlan } from '@/lib/funnel-payments-client';
 
 const features = [
   'Full 3-day convention (March 26-28, 2026)',
@@ -17,13 +20,18 @@ const features = [
 
 export default function ConventionPlanPage() {
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleAccept = () => {
-    // Save convention payment plan to order
+  const handleAccept = async () => {
+    if (isLoading) return;
+    setIsLoading(true); setError(null);
+    const stripe = await getStripe();
+    if (!stripe) { setError('Payment unavailable.'); setIsLoading(false); return; }
+    const { ok, error } = await startInstallmentPlan(stripe);
+    if (!ok) { setError(error ?? 'Could not start the plan.'); setIsLoading(false); return; }
     const order = JSON.parse(sessionStorage.getItem('funnelOrder') || '{}');
-    const items = order.items || [];
-    items.push({ name: 'Convention Ticket (3-Payment Plan)', price: 997, note: '3 × $332.33' });
-    order.items = items;
+    order.items = [...(order.items || []), { name: 'Convention Ticket (3-Payment Plan)', price: 997, note: '3 × $332.33' }];
     order.total = (order.total || 0) + 997;
     sessionStorage.setItem('funnelOrder', JSON.stringify(order));
     router.push('/free-book/thank-you');
@@ -112,9 +120,10 @@ export default function ConventionPlanPage() {
                 ))}
               </ul>
 
-              <FunnelCTA onClick={handleAccept} size="xl" className="w-full">
+              <FunnelCTA onClick={handleAccept} size="xl" className="w-full" disabled={isLoading}>
                 Yes, Split My Payment Into 3 (Start With $332.33 Today)
               </FunnelCTA>
+              {error && <p className="text-red-400 text-sm">{error}</p>}
             </div>
 
             {/* Guarantee */}
@@ -144,9 +153,10 @@ export default function ConventionPlanPage() {
 
             {/* Final CTA */}
             <div className="space-y-4">
-              <FunnelCTA onClick={handleAccept} size="xl" className="w-full">
+              <FunnelCTA onClick={handleAccept} size="xl" className="w-full" disabled={isLoading}>
                 Lock In My Payment Plan Spot Now
               </FunnelCTA>
+              {error && <p className="text-red-400 text-sm">{error}</p>}
 
               <button
                 onClick={handleDecline}

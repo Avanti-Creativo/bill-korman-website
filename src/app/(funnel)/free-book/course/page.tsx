@@ -5,6 +5,7 @@ import { Check, Play, FileText, Calculator, Calendar, Users } from 'lucide-react
 import { useRouter } from 'next/navigation';
 import FunnelCTA from '@/components/funnel/FunnelCTA';
 import UrgencyBanner from '@/components/funnel/UrgencyBanner';
+import { useUpsellCharge } from '@/hooks/useUpsellCharge';
 
 const features = [
   { icon: Play, title: 'The Full 168 Game Framework', desc: 'Delivered in short, actionable video modules—walk through each pillar of time ownership with Bill as your guide.' },
@@ -19,16 +20,16 @@ const features = [
 
 export default function CourseDownsellPage() {
   const router = useRouter();
+  const { run, isLoading, error } = useUpsellCharge();
 
   const handleAccept = () => {
-    // Save course to order
-    const order = JSON.parse(sessionStorage.getItem('funnelOrder') || '{}');
-    const items = order.items || [];
-    items.push({ name: 'On-Demand Mastery Course', price: 497, note: '' });
-    order.items = items;
-    order.total = (order.total || 0) + 497;
-    sessionStorage.setItem('funnelOrder', JSON.stringify(order));
-    router.push('/free-book/convention');
+    run('course', () => {
+      const order = JSON.parse(sessionStorage.getItem('funnelOrder') || '{}');
+      order.items = [...(order.items || []), { name: 'On-Demand Mastery Course', price: 497, note: '' }];
+      order.total = (order.total || 0) + 497;
+      sessionStorage.setItem('funnelOrder', JSON.stringify(order));
+      router.push('/free-book/convention');
+    });
   };
 
   const handleDecline = () => {
@@ -208,9 +209,10 @@ export default function CourseDownsellPage() {
                 $497
               </motion.div>
 
-              <FunnelCTA onClick={handleAccept} size="xl" className="w-full max-w-lg mx-auto mb-6">
-                Yes! Add This To My Order For Only $497
+              <FunnelCTA onClick={handleAccept} size="xl" className="w-full max-w-lg mx-auto mb-6" disabled={isLoading}>
+                {isLoading ? 'Processing…' : 'Yes! Add This To My Order For Only $497'}
               </FunnelCTA>
+              {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
 
               <button
                 onClick={handleDecline}
@@ -250,9 +252,10 @@ export default function CourseDownsellPage() {
               <span className="text-accent-400">$497</span> <span className="text-white">gets you everything.</span>
             </motion.p>
 
-            <FunnelCTA onClick={handleAccept} size="xl" className="w-full max-w-lg mx-auto mb-6">
-              Add To My Order For $497
+            <FunnelCTA onClick={handleAccept} size="xl" className="w-full max-w-lg mx-auto mb-6" disabled={isLoading}>
+              {isLoading ? 'Processing…' : 'Add To My Order For $497'}
             </FunnelCTA>
+            {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
 
             <button
               onClick={handleDecline}
