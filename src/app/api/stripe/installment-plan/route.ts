@@ -25,7 +25,13 @@ export async function POST() {
     }
 
     // 3 monthly charges of $332.33 on the saved card, then auto-cancel.
-    const schedule = await stripe.subscriptionSchedules.create({
+    // Stripe API 2025-08-27+ (our SDK pins 2026-06-24.dahlia) replaced the phase
+    // `iterations` parameter with `duration`. The first invoice auto-charges the
+    // saved default card now; charges 2 & 3 run off-session at +30/+60 days, then
+    // the schedule cancels. Invoices no longer expose `payment_intent`, so a card
+    // that needs 3-DS on the first installment is collected via Stripe dunning
+    // (hosted invoice email) rather than an inline challenge.
+    await stripe.subscriptionSchedules.create({
       customer: session.stripeCustomerId,
       start_date: 'now',
       end_behavior: 'cancel',
@@ -33,23 +39,15 @@ export async function POST() {
         default_payment_method: paymentMethodId,
         collection_method: 'charge_automatically',
       },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      phases: [{ items: [{ price: priceId, quantity: 1 }], iterations: 3 }] as any,
+      phases: [
+        {
+          items: [{ price: priceId, quantity: 1 }],
+          duration: { interval: 'month', interval_count: 3 },
+        },
+      ],
       metadata: { ghlContactId: session.ghlContactId ?? '', product: 'convention-plan' },
-      expand: ['subscription.latest_invoice.payment_intent'],
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sub = schedule.subscription as any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const pi: any =
-      sub && typeof sub !== 'string' && sub.latest_invoice && typeof sub.latest_invoice !== 'string'
-        ? sub.latest_invoice.payment_intent
-        : null;
-
-    if (pi && typeof pi !== 'string' && pi.status === 'requires_action') {
-      return NextResponse.json({ status: 'requires_action', clientSecret: pi.client_secret }, { status: 200 });
-    }
     return NextResponse.json({ status: 'active' }, { status: 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Could not start the plan.';
