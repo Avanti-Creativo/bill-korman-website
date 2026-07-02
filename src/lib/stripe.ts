@@ -42,11 +42,10 @@ export function checkoutAmountCents(orderBump: boolean): number {
 // The checkout PaymentIntent's setup_future_usage attaches the card to the customer.
 export async function resolveCustomerPaymentMethod(customerId: string): Promise<string | null> {
   const customer = await stripe.customers.retrieve(customerId);
-  if (customer && !('deleted' in customer && customer.deleted)) {
-    const dpm = customer.invoice_settings?.default_payment_method;
-    if (typeof dpm === 'string') return dpm;
-    if (dpm && typeof dpm === 'object' && 'id' in dpm) return dpm.id;
-  }
+  if (!customer || ('deleted' in customer && customer.deleted)) return null;
+  const dpm = customer.invoice_settings?.default_payment_method;
+  if (typeof dpm === 'string') return dpm;
+  if (dpm && typeof dpm === 'object' && 'id' in dpm) return dpm.id;
   const list = await stripe.paymentMethods.list({ customer: customerId, type: 'card', limit: 1 });
   return list.data[0]?.id ?? null;
 }

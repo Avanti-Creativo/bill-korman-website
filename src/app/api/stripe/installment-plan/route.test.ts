@@ -6,6 +6,9 @@ process.env.STRIPE_CONVENTION_PLAN_PRICE_ID = 'price_plan';
 const cookieValue = serializeSession({
   stripeCustomerId: 'cus_1', paymentMethodId: 'pm_1', ghlContactId: 'g1', email: 'a@b.com', purchased: [],
 });
+const cookieValueNullPm = serializeSession({
+  stripeCustomerId: 'cus_1', paymentMethodId: null, ghlContactId: 'g1', email: 'a@b.com', purchased: [],
+});
 const cookieStore = { get: vi.fn(() => ({ value: cookieValue })), set: vi.fn() };
 vi.mock('next/headers', () => ({ cookies: () => cookieStore }));
 
@@ -18,10 +21,11 @@ vi.mock('@/lib/stripe', () => ({
       })),
     },
   },
+  resolveCustomerPaymentMethod: vi.fn(async () => 'pm_healed'),
 }));
 
 import { POST } from './route';
-import { stripe } from '@/lib/stripe';
+import { stripe, resolveCustomerPaymentMethod } from '@/lib/stripe';
 
 const req = () => new Request('http://localhost', { method: 'POST', body: '{}' });
 beforeEach(() => vi.clearAllMocks());
@@ -68,5 +72,14 @@ describe('POST /api/stripe/installment-plan', () => {
     } finally {
       process.env.STRIPE_CONVENTION_PLAN_PRICE_ID = saved;
     }
+  });
+
+  it('self-heals: resolves saved card via resolveCustomerPaymentMethod when paymentMethodId is null', async () => {
+    cookieStore.get.mockReturnValueOnce({ value: cookieValueNullPm });
+    const res = await POST(req());
+    expect(await res.json()).toEqual({ status: 'active' });
+    expect(resolveCustomerPaymentMethod).toHaveBeenCalledWith('cus_1');
+    const arg = (stripe.subscriptionSchedules.create as any).mock.calls[0][0];
+    expect(arg.default_settings.default_payment_method).toBe('pm_healed');
   });
 });

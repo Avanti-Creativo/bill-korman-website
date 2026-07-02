@@ -1,10 +1,17 @@
 import type { Stripe } from '@stripe/stripe-js';
 
-async function postJSON(url: string, body: unknown) {
+async function postJSON(url: string, body: unknown): Promise<{ status: string; clientSecret?: string; message?: string }> {
   const res = await fetch(url, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
   });
-  if (!res.ok) return { status: 'failed', message: 'Request failed.' };
+  if (!res.ok) {
+    try {
+      const errBody = await res.json();
+      return { status: 'failed', message: errBody.message ?? 'Request failed.' };
+    } catch {
+      return { status: 'failed', message: 'Request failed.' };
+    }
+  }
   return res.json() as Promise<{ status: string; clientSecret?: string; message?: string }>;
 }
 
