@@ -38,4 +38,35 @@ describe('POST /api/stripe/installment-plan', () => {
     expect(arg.phases[0].iterations).toBe(3);
     expect(arg.phases[0].items[0].price).toBe('price_plan');
   });
+
+  it('returns requires_action + clientSecret when first invoice payment_intent needs 3DS', async () => {
+    (stripe.subscriptionSchedules.create as any).mockResolvedValueOnce({
+      id: 'sub_sched_2',
+      subscription: {
+        latest_invoice: {
+          payment_intent: { status: 'requires_action', client_secret: 'cs_plan' },
+        },
+      },
+    });
+    const res = await POST(req());
+    expect(await res.json()).toEqual({ status: 'requires_action', clientSecret: 'cs_plan' });
+  });
+
+  it('returns 400 and does not call stripe when there is no funnel session', async () => {
+    (cookieStore.get as any).mockReturnValueOnce(undefined);
+    const res = await POST(req());
+    expect(res.status).toBe(400);
+    expect(stripe.subscriptionSchedules.create).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 when the plan price env var is not configured', async () => {
+    const saved = process.env.STRIPE_CONVENTION_PLAN_PRICE_ID;
+    delete process.env.STRIPE_CONVENTION_PLAN_PRICE_ID;
+    try {
+      const res = await POST(req());
+      expect(res.status).toBe(500);
+    } finally {
+      process.env.STRIPE_CONVENTION_PLAN_PRICE_ID = saved;
+    }
+  });
 });

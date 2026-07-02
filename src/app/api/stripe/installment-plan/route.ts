@@ -12,7 +12,7 @@ export async function POST() {
 
     const jar = await cookies();
     const session = parseSession(jar.get(FUNNEL_COOKIE)?.value);
-    if (!session || !session.paymentMethodId) {
+    if (!session || !session.paymentMethodId || !session.stripeCustomerId) {
       return NextResponse.json({ status: 'failed', message: 'No saved card on file.' }, { status: 400 });
     }
 
