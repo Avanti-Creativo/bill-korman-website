@@ -39,5 +39,6 @@ describe('POST /api/stripe/webhook', () => {
 
     const res = await POST(req('bad'));
     expect(res.status).toBe(400);
+    expect(vi.mocked(ghlModule.addNote)).not.toHaveBeenCalled();
   });
 });
