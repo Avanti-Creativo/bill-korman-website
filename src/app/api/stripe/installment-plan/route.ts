@@ -25,13 +25,16 @@ export async function POST() {
         default_payment_method: session.paymentMethodId,
         collection_method: 'charge_automatically',
       },
-      phases: [{ items: [{ price: priceId, quantity: 1 }], iterations: 3 }],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      phases: [{ items: [{ price: priceId, quantity: 1 }], iterations: 3 }] as any,
       metadata: { ghlContactId: session.ghlContactId ?? '', product: 'convention-plan' },
       expand: ['subscription.latest_invoice.payment_intent'],
     });
 
-    const sub = schedule.subscription;
-    const pi =
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sub = schedule.subscription as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pi: any =
       sub && typeof sub !== 'string' && sub.latest_invoice && typeof sub.latest_invoice !== 'string'
         ? sub.latest_invoice.payment_intent
         : null;

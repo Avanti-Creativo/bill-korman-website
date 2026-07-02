@@ -40,12 +40,14 @@ export async function POST(request: Request) {
       break;
     }
     case 'invoice.paid': {
-      const inv = event.data.object as Stripe.Invoice;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const inv = event.data.object as any;
       await noteFromMetadata(inv.subscription_details?.metadata, inv.amount_paid, 'installment paid');
       break;
     }
     case 'invoice.payment_failed': {
-      const inv = event.data.object as Stripe.Invoice;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const inv = event.data.object as any;
       await noteFromMetadata(inv.subscription_details?.metadata, inv.amount_due, 'installment FAILED');
       break;
     }
