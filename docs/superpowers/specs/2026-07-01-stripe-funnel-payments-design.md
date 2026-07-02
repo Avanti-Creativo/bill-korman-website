@@ -162,6 +162,18 @@ product key. Each route reads/writes the signed session cookie.
   3. Metadata `{ ghlContactId, product: 'convention-plan' }`. Payments 2 & 3
      auto-charge on schedule; Stripe's dunning handles any later failure.
 
+  > **As-built note (2026-07-02, from live test-mode verification):** the SDK pins
+  > API `2026-06-24.dahlia`, where the phase `iterations` param was **removed**
+  > (use `duration: { interval: 'month', interval_count: 3 }`) and
+  > `Invoice.payment_intent` no longer exists — so the planned
+  > `default_incomplete` + first-invoice-PaymentIntent 3-DS handshake isn't
+  > available. As shipped: the schedule's first invoice **auto-charges** the saved
+  > default card (`charge_automatically`) now, and charges 2 & 3 run at +30/+60d.
+  > A card that requires 3-DS on the *first* installment is collected via Stripe's
+  > dunning (hosted-invoice email), not an inline challenge. Verified live: schedule
+  > creates (3 monthly cycles, `end_behavior: cancel`) and the first $332.33 charged
+  > on the saved card.
+
 - **`webhook/route.ts`** — Signature-verified with `STRIPE_WEBHOOK_SECRET`
   (raw body). Handles `payment_intent.succeeded`, `invoice.paid`,
   `invoice.payment_failed`, `charge.refunded`. Uses the object's **metadata**
