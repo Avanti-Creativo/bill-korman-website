@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { serializeSession } from '@/lib/funnel-session';
+import { serializeSession, parseSession } from '@/lib/funnel-session';
 
 process.env.FUNNEL_SESSION_SECRET = 'test-secret';
 const validCookie = serializeSession({
@@ -29,5 +29,22 @@ describe('POST /api/stripe/save-session', () => {
       invoice_settings: { default_payment_method: 'pm_9' },
     });
     expect(cookieStore.set).toHaveBeenCalled();
+    const [, serialized] = (cookieStore.set as any).mock.calls[0];
+    expect(parseSession(serialized)?.paymentMethodId).toBe('pm_9');
+  });
+
+  it('returns 400 when the PaymentIntent has not succeeded', async () => {
+    (stripe.paymentIntents.retrieve as any).mockResolvedValueOnce({
+      id: 'pi_1', customer: 'cus_1', payment_method: 'pm_9', status: 'requires_action',
+    });
+    const res = await POST(req({ paymentIntentId: 'pi_1' }));
+    expect(res.status).toBe(400);
+    expect(stripe.customers.update).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 when there is no funnel session', async () => {
+    (cookieStore.get as any).mockReturnValueOnce(undefined);
+    const res = await POST(req({ paymentIntentId: 'pi_1' }));
+    expect(res.status).toBe(400);
   });
 });
