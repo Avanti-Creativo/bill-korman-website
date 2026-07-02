@@ -4,6 +4,7 @@ async function postJSON(url: string, body: unknown) {
   const res = await fetch(url, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
   });
+  if (!res.ok) return { status: 'failed', message: 'Request failed.' };
   return res.json() as Promise<{ status: string; clientSecret?: string; message?: string }>;
 }
 

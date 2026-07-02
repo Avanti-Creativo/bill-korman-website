@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { stripe, PRODUCTS, CURRENCY, type ProductKey } from '@/lib/stripe';
+import { stripe, PRODUCTS, CURRENCY, resolveCustomerPaymentMethod, type ProductKey } from '@/lib/stripe';
 import { parseSession, serializeSession, FUNNEL_COOKIE, type FunnelSession } from '@/lib/funnel-session';
 
 export const runtime = 'nodejs';
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as { product?: ProductKey; finalizePaymentIntentId?: string };
     const jar = await cookies();
     const session = parseSession(jar.get(FUNNEL_COOKIE)?.value);
-    if (!session || !session.paymentMethodId) {
+    if (!session || !session.stripeCustomerId) {
       return NextResponse.json({ status: 'failed', message: 'No saved card on file.' }, { status: 400 });
     }
 
@@ -46,12 +46,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ status: 'failed', message: 'Already purchased.' }, { status: 409 });
     }
 
+    let paymentMethodId = session.paymentMethodId;
+    if (!paymentMethodId) {
+      paymentMethodId = await resolveCustomerPaymentMethod(session.stripeCustomerId);
+    }
+    if (!paymentMethodId) {
+      return NextResponse.json({ status: 'failed', message: 'No saved card on file.' }, { status: 400 });
+    }
+
     const pi = await stripe.paymentIntents.create(
       {
         amount: PRODUCTS[product].amount,
         currency: CURRENCY,
         customer: session.stripeCustomerId,
-        payment_method: session.paymentMethodId,
+        payment_method: paymentMethodId,
         confirm: true,
         // On-session: buyer is present, so 3-DS can complete. No redirects (server-side confirm).
         automatic_payment_methods: { enabled: true, allow_redirects: 'never' },

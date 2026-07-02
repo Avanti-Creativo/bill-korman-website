@@ -156,6 +156,7 @@ export default function ConventionPlanPage() {
               <FunnelCTA onClick={handleAccept} size="xl" className="w-full" disabled={isLoading}>
                 Lock In My Payment Plan Spot Now
               </FunnelCTA>
+              {error && <p className="text-red-400 text-sm">{error}</p>}
 
               <button
                 onClick={handleDecline}

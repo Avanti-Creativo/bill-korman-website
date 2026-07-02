@@ -13,17 +13,24 @@ vi.mock('@/lib/stripe', async (orig) => {
   const actual = await orig<typeof import('@/lib/stripe')>();
   return {
     ...actual,
+    resolveCustomerPaymentMethod: vi.fn(async () => null),
     stripe: {
       paymentIntents: {
         create: vi.fn(async () => ({ id: 'pi_up', status: 'succeeded', client_secret: 's', metadata: { product: 'course' } })),
         retrieve: vi.fn(),
+      },
+      customers: {
+        retrieve: vi.fn(),
+      },
+      paymentMethods: {
+        list: vi.fn(async () => ({ data: [] })),
       },
     },
   };
 });
 
 import { POST } from './route';
-import { stripe } from '@/lib/stripe';
+import { stripe, resolveCustomerPaymentMethod } from '@/lib/stripe';
 
 const req = (b: unknown) => new Request('http://localhost', { method: 'POST', body: JSON.stringify(b) });
 beforeEach(() => { vi.clearAllMocks(); cookieValue = serializeSession({ stripeCustomerId: 'cus_1', paymentMethodId: 'pm_1', ghlContactId: 'g1', email: 'a@b.com', purchased: [] }); });
@@ -71,5 +78,16 @@ describe('POST /api/stripe/upsell', () => {
     const res = await POST(req({ finalizePaymentIntentId: 'pi_f2' }));
     expect(res.status).toBe(200);
     expect((await res.json()).status).toBe('failed');
+  });
+
+  it('self-heals when paymentMethodId is null by resolving from customer default', async () => {
+    cookieValue = serializeSession({ stripeCustomerId: 'cus_1', paymentMethodId: null, ghlContactId: 'g1', email: 'a@b.com', purchased: [] });
+    (resolveCustomerPaymentMethod as ReturnType<typeof vi.fn>).mockResolvedValueOnce('pm_default');
+    const res = await POST(req({ product: 'course' }));
+    expect(await res.json()).toEqual({ status: 'succeeded' });
+    expect(stripe.paymentIntents.create).toHaveBeenCalledWith(
+      expect.objectContaining({ payment_method: 'pm_default' }),
+      expect.anything(),
+    );
   });
 });

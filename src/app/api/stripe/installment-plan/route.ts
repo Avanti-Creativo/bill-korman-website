@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { stripe } from '@/lib/stripe';
+import { stripe, resolveCustomerPaymentMethod } from '@/lib/stripe';
 import { parseSession, FUNNEL_COOKIE } from '@/lib/funnel-session';
 
 export const runtime = 'nodejs';
@@ -12,7 +12,15 @@ export async function POST() {
 
     const jar = await cookies();
     const session = parseSession(jar.get(FUNNEL_COOKIE)?.value);
-    if (!session || !session.paymentMethodId || !session.stripeCustomerId) {
+    if (!session || !session.stripeCustomerId) {
+      return NextResponse.json({ status: 'failed', message: 'No saved card on file.' }, { status: 400 });
+    }
+
+    let paymentMethodId = session.paymentMethodId;
+    if (!paymentMethodId) {
+      paymentMethodId = await resolveCustomerPaymentMethod(session.stripeCustomerId);
+    }
+    if (!paymentMethodId) {
       return NextResponse.json({ status: 'failed', message: 'No saved card on file.' }, { status: 400 });
     }
 
@@ -22,7 +30,7 @@ export async function POST() {
       start_date: 'now',
       end_behavior: 'cancel',
       default_settings: {
-        default_payment_method: session.paymentMethodId,
+        default_payment_method: paymentMethodId,
         collection_method: 'charge_automatically',
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -94,10 +94,17 @@ function CheckoutForm({
       return;
     }
 
-    await fetch('/api/stripe/save-session', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ paymentIntentId: paymentIntent!.id }),
-    });
+    let saved = false;
+    for (let attempt = 0; attempt < 2 && !saved; attempt++) {
+      try {
+        const saveRes = await fetch('/api/stripe/save-session', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paymentIntentId: paymentIntent!.id }),
+        });
+        saved = saveRes.ok;
+      } catch { /* retry once */ }
+    }
+    if (!saved) console.error('save-session did not confirm; upsells will self-heal from the saved customer card');
     router.push('/free-book/mastery');
   };
 

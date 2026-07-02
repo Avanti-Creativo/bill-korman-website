@@ -1,5 +1,5 @@
 #!/bin/sh
-if git diff --cached -U0 | grep -nE '(sk_live|sk_test|rk_live|rk_test|whsec_)[_A-Za-z0-9]{6,}'; then
+if git diff --cached -U0 | grep '^+' | grep -v '^+++' | grep -E '(sk_live|sk_test|rk_live|rk_test|whsec_)[_A-Za-z0-9]{6,}'; then
   echo "❌ Commit blocked: a Stripe secret/restricted/webhook key literal is staged."
   echo "   Move it to .env.local (gitignored) and retry."
   exit 1

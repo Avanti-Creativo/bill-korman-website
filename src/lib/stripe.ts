@@ -7,7 +7,7 @@ const secretKey = process.env.STRIPE_SECRET_KEY;
 // Fall back to a placeholder so the module can be imported in test environments
 // where STRIPE_SECRET_KEY is not set. Call isStripeConfigured() before using the
 // stripe client in production paths.
-export const stripe = new Stripe(secretKey ?? 'rk_test_placeholder_not_configured');
+export const stripe = new Stripe(secretKey ?? 'STRIPE_KEY_NOT_CONFIGURED');
 
 export function isStripeConfigured(): boolean {
   return Boolean(process.env.STRIPE_SECRET_KEY);
@@ -35,4 +35,18 @@ export const PRODUCTS: Record<ProductKey, { amount: number; label: string }> = {
 
 export function checkoutAmountCents(orderBump: boolean): number {
   return PRODUCTS['book-shipping'].amount + (orderBump ? PRODUCTS['order-bump'].amount : 0);
+}
+
+// Resolves a usable saved card for one-click charges even if the funnel-session
+// cookie's paymentMethodId was never persisted (e.g. a save-session hiccup).
+// The checkout PaymentIntent's setup_future_usage attaches the card to the customer.
+export async function resolveCustomerPaymentMethod(customerId: string): Promise<string | null> {
+  const customer = await stripe.customers.retrieve(customerId);
+  if (customer && !('deleted' in customer && customer.deleted)) {
+    const dpm = customer.invoice_settings?.default_payment_method;
+    if (typeof dpm === 'string') return dpm;
+    if (dpm && typeof dpm === 'object' && 'id' in dpm) return dpm.id;
+  }
+  const list = await stripe.paymentMethods.list({ customer: customerId, type: 'card', limit: 1 });
+  return list.data[0]?.id ?? null;
 }

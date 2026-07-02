@@ -257,6 +257,7 @@ export default function ConventionUpsellPage() {
                 disabled={isLoading}
               />
             </div>
+            {error && <p className="text-red-400 text-sm mt-3 text-center">{error}</p>}
           </motion.div>
         </div>
       </section>

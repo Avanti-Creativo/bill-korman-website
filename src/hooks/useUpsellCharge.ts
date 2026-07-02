@@ -14,9 +14,9 @@ export function useUpsellCharge() {
     setError(null);
     const stripe = await getStripe();
     if (!stripe) { setError('Payment unavailable.'); setIsLoading(false); return; }
-    const { ok, error } = await chargeUpsell(product, stripe);
+    const { ok, error: chargeError } = await chargeUpsell(product, stripe);
     if (ok) { onSuccess(); return; } // leave loading true through the redirect
-    setError(error ?? 'Payment failed.');
+    setError(chargeError ?? 'Payment failed.');
     setIsLoading(false);
   }
 
