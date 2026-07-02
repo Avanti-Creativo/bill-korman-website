@@ -5,6 +5,7 @@ import { Check, Users, Video, MessageSquare, FileText, Calendar, Star, Shield, C
 import { useRouter } from 'next/navigation';
 import FunnelCTA from '@/components/funnel/FunnelCTA';
 import UrgencyBanner from '@/components/funnel/UrgencyBanner';
+import { useUpsellCharge } from '@/hooks/useUpsellCharge';
 
 const features = [
   { icon: Calendar, title: '6-Month Accelerator Roadmap', desc: 'Your custom game plan, tailored to your business model, bottlenecks, and goals.', value: '$2,500' },
@@ -24,16 +25,16 @@ const bonuses = [
 
 export default function MasteryUpsellPage() {
   const router = useRouter();
+  const { run, isLoading, error } = useUpsellCharge();
 
-  const handleAccept = (plan: 'full' | 'payments') => {
-    // Save mastery to order
-    const order = JSON.parse(sessionStorage.getItem('funnelOrder') || '{}');
-    const items = order.items || [];
-    items.push({ name: 'Time Ownership Accelerator (6-Month)', price: 7500, note: plan === 'payments' ? 'Payment plan' : 'Paid in full' });
-    order.items = items;
-    order.total = (order.total || 0) + 7500;
-    sessionStorage.setItem('funnelOrder', JSON.stringify(order));
-    router.push('/free-book/convention');
+  const handleAccept = () => {
+    run('mastery', () => {
+      const order = JSON.parse(sessionStorage.getItem('funnelOrder') || '{}');
+      order.items = [...(order.items || []), { name: 'Time Ownership Accelerator (6-Month)', price: 7500, note: 'Paid in full' }];
+      order.total = (order.total || 0) + 7500;
+      sessionStorage.setItem('funnelOrder', JSON.stringify(order));
+      router.push('/free-book/convention');
+    });
   };
 
   const handleDecline = () => {
@@ -393,10 +394,10 @@ export default function MasteryUpsellPage() {
                   <div className="mb-6">
                     <span className="text-6xl font-bold text-white" style={{ fontFamily: 'Bebas Neue, sans-serif' }}>$7,500</span>
                   </div>
-                  <FunnelCTA onClick={() => handleAccept('full')} variant="primary" size="xl" className="w-full">
-                    YES! Add This To My Order
+                  <FunnelCTA onClick={handleAccept} variant="primary" size="xl" className="w-full" disabled={isLoading}>
+                    {isLoading ? 'Processing…' : 'YES! Add This To My Order'}
                   </FunnelCTA>
-                  <p className="text-neutral-400 text-sm mt-4 text-center">Payment plans available</p>
+                  {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
                 </motion.div>
               </div>
 
@@ -509,11 +510,11 @@ export default function MasteryUpsellPage() {
               </motion.div>
 
               <div className="flex flex-col sm:flex-row justify-center gap-4 mb-8">
-                <FunnelCTA onClick={() => handleAccept('full')} variant="primary" size="xl">
-                  Add To My Order - $7,500
+                <FunnelCTA onClick={handleAccept} variant="primary" size="xl" disabled={isLoading}>
+                  {isLoading ? 'Processing…' : 'Add To My Order - $7,500'}
                 </FunnelCTA>
               </div>
-              <p className="text-neutral-400 text-sm mb-4">Payment plans available</p>
+              {error && <p className="text-red-400 text-sm mt-3 mb-4">{error}</p>}
 
               <button
                 onClick={handleDecline}
