@@ -51,4 +51,25 @@ describe('POST /api/stripe/upsell', () => {
     const res = await POST(req({ product: 'book-shipping' }));
     expect(res.status).toBe(400);
   });
+
+  it('requires_action — does NOT mark purchased, returns clientSecret', async () => {
+    (stripe.paymentIntents.create as any).mockResolvedValueOnce({ id: 'pi_ra', status: 'requires_action', client_secret: 'cs_ra' });
+    const res = await POST(req({ product: 'course' }));
+    expect(await res.json()).toEqual({ status: 'requires_action', clientSecret: 'cs_ra' });
+    expect(cookieStore.set).not.toHaveBeenCalled();
+  });
+
+  it('finalize succeeded — marks purchased, does NOT create a new charge', async () => {
+    (stripe.paymentIntents.retrieve as any).mockResolvedValueOnce({ id: 'pi_f', status: 'succeeded', metadata: { product: 'mastery' } });
+    const res = await POST(req({ finalizePaymentIntentId: 'pi_f' }));
+    expect(await res.json()).toEqual({ status: 'succeeded' });
+    expect(stripe.paymentIntents.create).not.toHaveBeenCalled();
+  });
+
+  it('finalize not-succeeded — returns failed', async () => {
+    (stripe.paymentIntents.retrieve as any).mockResolvedValueOnce({ id: 'pi_f2', status: 'requires_action', metadata: { product: 'mastery' } });
+    const res = await POST(req({ finalizePaymentIntentId: 'pi_f2' }));
+    expect(res.status).toBe(200);
+    expect((await res.json()).status).toBe('failed');
+  });
 });
